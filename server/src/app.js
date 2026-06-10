@@ -27,8 +27,9 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: status < 500 ? 'Invalid request body' : 'Internal server error' });
 });
 
 module.exports = app;
