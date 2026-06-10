@@ -7,6 +7,16 @@ const getClient = () => {
   return client;
 };
 
+function parseModelJson(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const err = new Error('AI response could not be parsed');
+    err.status = 502;
+    throw err;
+  }
+}
+
 const cleanBooks = (list) =>
   (Array.isArray(list) ? list : [])
     .filter((b) => b && typeof b.title === 'string' && b.title.trim())
@@ -21,6 +31,7 @@ const EXTRACT_PROMPT =
   '{"books":[{"title":"...","author":"..."}]} — author empty string if not visible.';
 
 async function extractTitles(files) {
+  if (!Array.isArray(files) || files.length === 0) return [];
   const content = [
     { type: 'text', text: EXTRACT_PROMPT },
     ...files.map((f) => ({
@@ -34,10 +45,15 @@ async function extractTitles(files) {
     response_format: { type: 'json_object' },
     max_tokens: 3000,
   });
-  return cleanBooks(JSON.parse(res.choices[0].message.content).books);
+  return cleanBooks(parseModelJson(res.choices[0].message.content).books);
 }
 
 async function getRecommendationsAndMood(libraryBooks) {
+  if (!Array.isArray(libraryBooks) || libraryBooks.length === 0) {
+    const err = new Error('libraryBooks required');
+    err.status = 400;
+    throw err;
+  }
   const shelf = libraryBooks
     .map((b) => (b.author ? `${b.title} — ${b.author}` : b.title))
     .join('\n');
@@ -52,7 +68,7 @@ async function getRecommendationsAndMood(libraryBooks) {
     response_format: { type: 'json_object' },
     max_tokens: 2000,
   });
-  const parsed = JSON.parse(res.choices[0].message.content);
+  const parsed = parseModelJson(res.choices[0].message.content);
 
   // Fix: attach reason before filtering so index alignment is preserved even
   // if cleanBooks drops junk entries. Filter and map in one pass over the raw

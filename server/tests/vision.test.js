@@ -37,3 +37,35 @@ test('getRecommendationsAndMood returns recs and mood', async () => {
   expect(out.recommendations[0].title).toBe('Hyperion');
   expect(out.mood.profileName).toBe('Cosmic Wanderer');
 });
+
+beforeEach(() => OpenAI.__create.mockClear());
+
+test('extractTitles returns [] for empty or missing files without calling API', async () => {
+  expect(await extractTitles([])).toEqual([]);
+  expect(await extractTitles(undefined)).toEqual([]);
+  expect(OpenAI.__create).not.toHaveBeenCalled();
+});
+
+test('unparseable model output throws 502-tagged error', async () => {
+  OpenAI.__create.mockResolvedValueOnce({ choices: [{ message: { content: 'not json{{' } }] });
+  await expect(extractTitles([{ mimetype: 'image/png', buffer: Buffer.from('x') }]))
+    .rejects.toMatchObject({ status: 502 });
+});
+
+test('clamps oversized fields and caps tags', async () => {
+  OpenAI.__create.mockResolvedValueOnce(reply({
+    recommendations: [{ title: 'T'.repeat(400), author: 'A'.repeat(300), reason: 'R'.repeat(500) }],
+    mood: { profileName: 'P'.repeat(100), summary: 'S'.repeat(700), tags: ['a','b','c','d','e','f','g','h'] },
+  }));
+  const out = await getRecommendationsAndMood([{ title: 'Dune', author: '' }]);
+  expect(out.recommendations[0].title).toHaveLength(300);
+  expect(out.recommendations[0].author).toHaveLength(200);
+  expect(out.recommendations[0].reason).toHaveLength(400);
+  expect(out.mood.profileName).toHaveLength(80);
+  expect(out.mood.summary).toHaveLength(600);
+  expect(out.mood.tags).toHaveLength(6);
+});
+
+test('empty libraryBooks throws 400-tagged error', async () => {
+  await expect(getRecommendationsAndMood([])).rejects.toMatchObject({ status: 400 });
+});
