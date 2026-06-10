@@ -7,7 +7,7 @@ const config = require('../config');
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const sign = (user) =>
-  jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, { expiresIn: '24h' });
+  jwt.sign({ sub: user.id, role: user.role }, config.jwtSecret, { expiresIn: '24h', algorithm: 'HS256' });
 
 const publicUser = (u) => ({
   id: u.id, email: u.email, role: u.role,
