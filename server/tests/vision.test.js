@@ -69,3 +69,16 @@ test('clamps oversized fields and caps tags', async () => {
 test('empty libraryBooks throws 400-tagged error', async () => {
   await expect(getRecommendationsAndMood([])).rejects.toMatchObject({ status: 400 });
 });
+
+test('empty choices array yields 502, not TypeError', async () => {
+  OpenAI.__create.mockResolvedValueOnce({ choices: [] });
+  await expect(extractTitles([{ mimetype: 'image/png', buffer: Buffer.from('x') }]))
+    .rejects.toMatchObject({ status: 502 });
+});
+
+test('getRecommendationsAndMood also 502s on unparseable output', async () => {
+  OpenAI.__create.mockResolvedValueOnce({ choices: [{ message: { content: null } }] });
+  await expect(getRecommendationsAndMood([{ title: 'Dune', author: '' }]))
+    .rejects.toMatchObject({ status: 502 });
+});
+

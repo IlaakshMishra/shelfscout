@@ -9,7 +9,9 @@ const getClient = () => {
 
 function parseModelJson(raw) {
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+    return parsed;
   } catch {
     const err = new Error('AI response could not be parsed');
     err.status = 502;
@@ -45,7 +47,7 @@ async function extractTitles(files) {
     response_format: { type: 'json_object' },
     max_tokens: 3000,
   });
-  return cleanBooks(parseModelJson(res.choices[0].message.content).books);
+  return cleanBooks(parseModelJson(res.choices?.[0]?.message?.content ?? null).books);
 }
 
 async function getRecommendationsAndMood(libraryBooks) {
@@ -68,7 +70,7 @@ async function getRecommendationsAndMood(libraryBooks) {
     response_format: { type: 'json_object' },
     max_tokens: 2000,
   });
-  const parsed = parseModelJson(res.choices[0].message.content);
+  const parsed = parseModelJson(res.choices?.[0]?.message?.content ?? null);
 
   // Fix: attach reason before filtering so index alignment is preserved even
   // if cleanBooks drops junk entries. Filter and map in one pass over the raw
