@@ -10,11 +10,13 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const upload = multer({
   storage: multer.memoryStorage(), // photos live in RAM only and are garbage-collected after this request
-  limits: { files: 2, fileSize: 8 * 1024 * 1024 },
+  // Mimetype check is a UX gate, not a security control: files are only base64-encoded to OpenAI, never written to disk, served, or executed.
   fileFilter: (req, file, cb) => {
     if (ALLOWED_TYPES.includes(file.mimetype)) cb(null, true);
     else cb(new Error('UNSUPPORTED_TYPE'));
   },
+  // Memory ceiling: ≤2 × 8MB buffered per request (memoryStorage); deployment assumes a reverse-proxy body cap for global pressure.
+  limits: { files: 2, fileSize: 8 * 1024 * 1024 },
 });
 
 const scanLimiter = rateLimit({
@@ -26,13 +28,15 @@ router.post('/', requireAuth, scanLimiter, (req, res, next) => {
   upload.array('photos', 2)(req, res, async (err) => {
     if (err) {
       const msg =
-        err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE'
-          ? 'Maximum 2 photos per scan'
-          : err.code === 'LIMIT_FILE_SIZE'
-            ? 'Each photo must be under 8MB'
-            : err.message === 'UNSUPPORTED_TYPE'
-              ? 'Only JPEG, PNG or WebP images are accepted'
-              : 'Upload failed';
+        err.code === 'LIMIT_UNEXPECTED_FILE' && err.field !== 'photos'
+          ? "Photos must be uploaded in the 'photos' field"
+          : err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE'
+            ? 'Maximum 2 photos per scan'
+            : err.code === 'LIMIT_FILE_SIZE'
+              ? 'Each photo must be under 8MB'
+              : err.message === 'UNSUPPORTED_TYPE'
+                ? 'Only JPEG, PNG or WebP images are accepted'
+                : 'Upload failed';
       return res.status(400).json({ error: msg });
     }
     try {

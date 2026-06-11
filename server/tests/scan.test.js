@@ -59,3 +59,28 @@ test('business with ?kind=store records store scan', async () => {
   const { rows } = await query('SELECT kind FROM scans');
   expect(rows[0].kind).toBe('store');
 });
+
+test('rejects photo over 8MB', async () => {
+  const { token } = await register();
+  const big = Buffer.alloc(8 * 1024 * 1024 + 1, 1);
+  // multer aborts the stream on size limit; supertest may see a connection reset
+  // rather than a clean 400 response depending on when the limit is hit mid-upload
+  try {
+    const res = await request(app).post('/api/scan')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('photos', big, { filename: 'big.png', contentType: 'image/png' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Each photo must be under 8MB');
+  } catch (e) {
+    expect(['EPIPE', 'ECONNRESET', 'ECONNABORTED'].some(code => e.code === code || (e.message && e.message.includes(code)))).toBe(true);
+  }
+});
+
+test('rejects file sent under wrong field name', async () => {
+  const { token } = await register();
+  const res = await request(app).post('/api/scan')
+    .set('Authorization', `Bearer ${token}`)
+    .attach('avatar', TINY_PNG, 'a.png');
+  expect(res.status).toBe(400);
+  expect(res.body.error).toBe("Photos must be uploaded in the 'photos' field");
+});
