@@ -19,7 +19,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 // Routes mounted in later tasks:
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/scan', require('./routes/scan'));
-// app.use('/api/library', require('./routes/library'));
+app.use('/api/library', require('./routes/library'));
 // app.use('/api/recommendations', require('./routes/recommendations'));
 // app.use('/api/inventory', require('./routes/inventory'));
 // app.use('/api/stores', require('./routes/stores'));
