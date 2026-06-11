@@ -53,3 +53,38 @@ test('out-of-stock inventory is not matched', async () => {
   const res = await request(app).get('/api/recommendations').set('Authorization', `Bearer ${token}`);
   expect(res.body.recommendations[0].availableAt).toEqual([]);
 });
+
+test('fuzzy match tolerates title variants and dedupes store', async () => {
+  const { token } = await register();
+  await request(app).post('/api/library/confirm').set('Authorization', `Bearer ${token}`)
+    .send({ books: [{ title: 'Dune', author: '' }] });
+  const biz = await registerBusiness({ storeName: 'Variant Books' });
+  // variant title — similar but not identical to 'Hyperion'
+  const { rows: [b1] } = await query(
+    `INSERT INTO books (title, author) VALUES ('Hyperion: A Novel', 'Dan Simmons')
+     ON CONFLICT (title, author) DO UPDATE SET title = EXCLUDED.title RETURNING id`);
+  // second copy/edition of a matching book at the SAME store — must not duplicate the badge
+  const { rows: [b2] } = await query(
+    `INSERT INTO books (title, author) VALUES ('Hyperion', '')
+     ON CONFLICT (title, author) DO UPDATE SET title = EXCLUDED.title RETURNING id`);
+  await query('INSERT INTO inventory (business_id, book_id) VALUES ($1, $2), ($1, $3)', [biz.user.id, b1.id, b2.id]);
+
+  const res = await request(app).get('/api/recommendations').set('Authorization', `Bearer ${token}`);
+  expect(res.body.recommendations[0].availableAt).toEqual([
+    { store_id: biz.user.id, store_name: 'Variant Books' },
+  ]);
+});
+
+test('dissimilar titles are not matched', async () => {
+  const { token } = await register();
+  await request(app).post('/api/library/confirm').set('Authorization', `Bearer ${token}`)
+    .send({ books: [{ title: 'Dune', author: '' }] });
+  const biz = await registerBusiness({ storeName: 'Unrelated Books' });
+  const { rows: [book] } = await query(
+    `INSERT INTO books (title, author) VALUES ('Pride and Prejudice', 'Jane Austen')
+     ON CONFLICT (title, author) DO UPDATE SET title = EXCLUDED.title RETURNING id`);
+  await query('INSERT INTO inventory (business_id, book_id) VALUES ($1, $2)', [biz.user.id, book.id]);
+
+  const res = await request(app).get('/api/recommendations').set('Authorization', `Bearer ${token}`);
+  expect(res.body.recommendations[0].availableAt).toEqual([]);
+});

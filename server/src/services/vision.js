@@ -3,7 +3,7 @@ const config = require('../config');
 
 let client;
 const getClient = () => {
-  if (!client) client = new OpenAI({ apiKey: config.openaiKey });
+  if (!client) client = new OpenAI({ apiKey: config.openaiKey, timeout: 30000, maxRetries: 1 });
   return client;
 };
 
