@@ -20,4 +20,14 @@ async function enrichBook({ title, author }) {
   }
 }
 
-module.exports = { enrichBook };
+const CONCURRENCY = 5;
+
+async function enrichAll(books) {
+  const out = [];
+  for (let i = 0; i < books.length; i += CONCURRENCY) {
+    out.push(...(await Promise.all(books.slice(i, i + CONCURRENCY).map(enrichBook))));
+  }
+  return out;
+}
+
+module.exports = { enrichBook, enrichAll };

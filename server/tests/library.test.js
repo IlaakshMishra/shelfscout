@@ -1,8 +1,9 @@
-jest.mock('../src/services/openlibrary', () => ({
-  enrichBook: jest.fn(async (b) => ({ ...b, coverUrl: 'http://cover/x.jpg', openlibraryKey: '/works/X' })),
-}));
+jest.mock('../src/services/openlibrary', () => {
+  const enrichBook = jest.fn(async (b) => ({ ...b, coverUrl: 'http://cover/x.jpg', openlibraryKey: '/works/X' }));
+  return { enrichBook, enrichAll: jest.fn(async (books) => Promise.all(books.map(enrichBook))) };
+});
 const request = require('supertest');
-const { app, pool, resetDb, register } = require('./helpers');
+const { app, pool, resetDb, register, query } = require('./helpers');
 
 beforeEach(resetDb);
 afterAll(() => pool.end());
@@ -56,4 +57,28 @@ test('GET /api/library/scans returns scan history with counts', async () => {
   const res = await request(app).get('/api/library/scans').set('Authorization', `Bearer ${token}`);
   expect(res.status).toBe(200);
   expect(Array.isArray(res.body.scans)).toBe(true);
+});
+
+test('confirm links entries to own scan; foreign scanId coerced to null', async () => {
+  const a = await register();
+  const b = await register();
+  const { rows: [scanA] } = await query(
+    "INSERT INTO scans (user_id, kind, photo_count) VALUES ($1, 'shelf', 1) RETURNING id", [a.user.id]);
+
+  await confirm(a.token, { scanId: scanA.id, books: [{ title: 'Dune', author: '' }] });
+  const { rows: linked } = await query('SELECT scan_id FROM library_entries WHERE user_id = $1', [a.user.id]);
+  expect(linked[0].scan_id).toBe(scanA.id);
+
+  await confirm(b.token, { scanId: scanA.id, books: [{ title: 'Circe', author: '' }] });
+  const { rows: foreign } = await query('SELECT scan_id FROM library_entries WHERE user_id = $1', [b.user.id]);
+  expect(foreign[0].scan_id).toBeNull();
+});
+
+test('scan history books_added counts linked entries', async () => {
+  const { token, user } = await register();
+  const { rows: [scan] } = await query(
+    "INSERT INTO scans (user_id, kind, photo_count) VALUES ($1, 'shelf', 2) RETURNING id", [user.id]);
+  await confirm(token, { scanId: scan.id, books: [{ title: 'Dune', author: '' }, { title: 'Circe', author: '' }] });
+  const res = await request(app).get('/api/library/scans').set('Authorization', `Bearer ${token}`);
+  expect(res.body.scans[0]).toMatchObject({ id: scan.id, books_added: 2 });
 });

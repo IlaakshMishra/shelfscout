@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { query } = require('../db');
-const { enrichBook } = require('../services/openlibrary');
+const { enrichBook, enrichAll } = require('../services/openlibrary');
 const { sanitizeBooks, upsertBook } = require('../services/books');
 
 router.use(requireAuth);
@@ -24,7 +24,7 @@ router.post('/confirm', async (req, res, next) => {
       );
       scanId = rows.length > 0 ? req.body.scanId : null;
     }
-    const enriched = await Promise.all(clean.map(enrichBook));
+    const enriched = await enrichAll(clean);
     const added = [];
     for (const book of enriched) {
       const row = await upsertBook(book);
