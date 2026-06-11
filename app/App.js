@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadToken, setToken } from './src/api';
+import { loadToken, setToken, setOnUnauthorized } from './src/api';
 import { colors, fonts } from './src/theme';
 import AuthScreen from './src/screens/AuthScreen';
 import ScanScreen from './src/screens/ScanScreen';
@@ -31,14 +31,25 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      await loadToken();
-      const raw = await AsyncStorage.getItem('user');
-      if (raw) {
-        const u = JSON.parse(raw);
-        setUser(u);
-        setRoute({ name: u.role === 'business' ? 'inventory' : 'scan', params: {} });
+      setOnUnauthorized(() => {
+        AsyncStorage.removeItem('user').catch(() => {});
+        setUser(null);
+        setRoute({ name: 'auth', params: {} });
+      });
+      try {
+        await loadToken();
+        const raw = await AsyncStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          setUser(u);
+          setRoute({ name: u.role === 'business' ? 'inventory' : 'scan', params: {} });
+        }
+      } catch {
+        await AsyncStorage.removeItem('user').catch(() => {});
+        await setToken(null).catch(() => {});
+      } finally {
+        setReady(true);
       }
-      setReady(true);
     })();
   }, []);
 

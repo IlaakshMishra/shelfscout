@@ -63,8 +63,8 @@ export default function AuthScreen({ onAuthed }) {
         </View>
       )}
 
-      <Field placeholder="Email" value={email} onChangeText={setEmail} inputMode="email" />
-      <Field placeholder="Password (min 8 characters)" value={password} onChangeText={setPassword} secureTextEntry />
+      <Field placeholder="Email" value={email} onChangeText={setEmail} inputMode="email" autoComplete="email" />
+      <Field placeholder="Password (min 8 characters)" value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
       {mode === 'register' && role === 'business' && (
         <>
           <Field placeholder="Store name" value={storeName} onChangeText={setStoreName} />
