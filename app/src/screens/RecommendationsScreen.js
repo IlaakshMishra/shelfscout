@@ -47,7 +47,7 @@ export default function RecommendationsScreen({ navigate }) {
         <Text style={s.moodName}>{data.mood.profileName}</Text>
         <Text style={s.moodSummary}>{data.mood.summary}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-          {data.mood.tags.map((t) => <Chip key={t} label={t} tone="moss" />)}
+          {data.mood.tags.map((t, i) => <Chip key={`${t}-${i}`} label={t} tone="moss" />)}
         </View>
       </View>
 
