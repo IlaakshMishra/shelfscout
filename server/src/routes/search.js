@@ -11,7 +11,7 @@ router.get('/', async (req, res, next) => {
        JOIN books b ON b.id = i.book_id
        JOIN users u ON u.id = i.business_id
        WHERE i.in_stock
-         AND (b.title ILIKE '%' || $1 || '%'
+         AND (lower(b.title) LIKE '%' || lower($1) || '%'
               OR (lower(b.title) % lower($1) AND similarity(lower(b.title), lower($1)) > 0.35))
        ORDER BY similarity(lower(b.title), lower($1)) DESC
        LIMIT 50`,

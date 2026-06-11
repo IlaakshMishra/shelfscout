@@ -52,6 +52,20 @@ test('GET /api/search finds titles across stores, rejects short queries', async 
   });
 });
 
+test('search fuzzy branch matches typo queries', async () => {
+  await seedStore('The Dusty Page', ['The Name of the Wind']);
+  const res = await request(app).get('/api/search?q=' + encodeURIComponent('name of teh wind'));
+  expect(res.status).toBe(200);
+  expect(res.body.results.map((r) => r.title)).toContain('The Name of the Wind');
+});
+
+test('store with empty inventory still listed with zero count', async () => {
+  await registerBusiness({ storeName: 'Empty Shelf Co' });
+  const res = await request(app).get('/api/stores');
+  const empty = res.body.stores.find((s) => s.store_name === 'Empty Shelf Co');
+  expect(empty.in_stock_count).toBe(0);
+});
+
 test('search does not return out-of-stock or unrelated titles', async () => {
   const { user, token } = await seedStore('The Dusty Page', ['Dune', 'Hyperion']);
   const inv = await request(app).get('/api/inventory').set('Authorization', `Bearer ${token}`);

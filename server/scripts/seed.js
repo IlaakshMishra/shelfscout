@@ -21,6 +21,11 @@ const STORES = [
 ];
 
 (async () => {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+    console.error('Refusing to seed a production database (set ALLOW_SEED=true to override).');
+    process.exit(1);
+  }
+
   const hash = await bcrypt.hash('demo-pass-123', 12);
 
   await query(
@@ -39,6 +44,7 @@ const STORES = [
     );
     const bizId = rows[0].id;
     for (const [title, author] of store.books) {
+      // DO UPDATE SET (instead of DO NOTHING) so RETURNING id works on conflict
       const { rows: b } = await query(
         `INSERT INTO books (title, author) VALUES ($1, $2)
          ON CONFLICT (title, author) DO UPDATE SET title = EXCLUDED.title RETURNING id`,
@@ -51,6 +57,6 @@ const STORES = [
       );
     }
   }
-  console.log('Seeded: reader@demo.com + 2 stores (password: demo-pass-123)');
+  console.log(`Seeded: reader@demo.com + ${STORES.length} stores (password: demo-pass-123)`);
   await pool.end();
 })().catch((err) => { console.error(err); process.exit(1); });
