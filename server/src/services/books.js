@@ -16,7 +16,8 @@ async function upsertBook({ title, author, coverUrl = null, openlibraryKey = nul
     `INSERT INTO books (title, author, cover_url, openlibrary_key)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (title, author)
-     DO UPDATE SET cover_url = COALESCE(books.cover_url, EXCLUDED.cover_url)
+     DO UPDATE SET cover_url = COALESCE(books.cover_url, EXCLUDED.cover_url),
+                  openlibrary_key = COALESCE(books.openlibrary_key, EXCLUDED.openlibrary_key)
      RETURNING *`,
     [title, author || '', coverUrl, openlibraryKey]
   );

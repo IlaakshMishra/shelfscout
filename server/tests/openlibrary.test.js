@@ -15,6 +15,17 @@ test('enriches with cover and author from first doc', async () => {
   });
 });
 
+test('aborts slow responses via timeout signal and falls back', async () => {
+  global.fetch = jest.fn(async (url, opts) => {
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+    const err = new Error('The operation was aborted');
+    err.name = 'TimeoutError';
+    throw err;
+  });
+  const out = await enrichBook({ title: 'Slow Book', author: '' });
+  expect(out).toEqual({ title: 'Slow Book', author: '', coverUrl: null, openlibraryKey: null });
+});
+
 test('falls back gracefully on no match or network error', async () => {
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ docs: [] }) }));
   expect(await enrichBook({ title: 'Zzz Unknown', author: 'X' }))
