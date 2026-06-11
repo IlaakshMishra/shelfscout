@@ -31,10 +31,22 @@ router.post('/confirm', async (req, res, next) => {
   try {
     const clean = sanitizeBooks(req.body?.books);
     if (clean.length === 0) return res.status(400).json({ error: 'books array required' });
-    const enriched = await enrichAll(clean);
     const added = [];
-    for (const book of enriched) {
-      const row = await upsertBook(book);
+    for (const book of clean) {
+      // Same fuzzy gate as /preview: a near-match already in this store's
+      // inventory is the same physical book — reuse it instead of forking
+      // a near-duplicate catalog row.
+      const { rows: matches } = await query(
+        `SELECT b.* FROM inventory i JOIN books b ON b.id = i.book_id
+         WHERE i.business_id = $1
+           AND lower(b.title) % lower($2)
+           AND similarity(lower(b.title), lower($2)) > 0.6
+         LIMIT 1`,
+        [req.user.id, book.title]
+      );
+      const row = matches[0] || (await upsertBook((await enrichAll([book]))[0]));
+      // Rescan = restock by design: seeing the spine again marks it back in stock,
+      // even if it was manually toggled sold-out.
       await query(
         `INSERT INTO inventory (business_id, book_id, in_stock)
          VALUES ($1, $2, true)

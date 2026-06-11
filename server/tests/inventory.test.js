@@ -75,3 +75,18 @@ test('toggle rejects bad ids, foreign books, and non-boolean payloads', async ()
   expect((await request(app).patch(`/api/inventory/${inv.body.items[0].book_id}`)
     .set('Authorization', `Bearer ${token}`).send({ inStock: 'yes' })).status).toBe(400);
 });
+
+test('confirm with fuzzy-existing title reuses stocked book instead of duplicating', async () => {
+  const token = await asBiz();
+  await post('/confirm', token, { books: [{ title: 'The Name of the Wind', author: '' }] });
+  await post('/confirm', token, { books: [{ title: 'Name of the Wind', author: '' }] });
+  const res = await request(app).get('/api/inventory').set('Authorization', `Bearer ${token}`);
+  expect(res.body.items).toHaveLength(1);
+  expect(res.body.items[0].title).toBe('The Name of the Wind');
+});
+
+test('preview rejects empty books payload', async () => {
+  const token = await asBiz();
+  expect((await post('/preview', token, { books: [] })).status).toBe(400);
+  expect((await post('/preview', token, {})).status).toBe(400);
+});
