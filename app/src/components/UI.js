@@ -7,6 +7,7 @@ export function Button({ title, onPress, variant = 'primary', disabled }) {
       role="button"
       aria-label={title}
       aria-disabled={disabled || undefined}
+      disabled={disabled}
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         s.btn,
