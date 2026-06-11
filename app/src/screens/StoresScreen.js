@@ -23,14 +23,19 @@ export default function StoresScreen({ navigate }) {
 
   useEffect(() => {
     if (q.trim().length < 2) { setResults(null); return; }
+    let stale = false; // ignore responses for queries the user has since replaced
     const t = setTimeout(async () => {
       try {
-        setResults((await api(`/search?q=${encodeURIComponent(q.trim())}`)).results);
+        const data = await api(`/search?q=${encodeURIComponent(q.trim())}`);
+        if (!stale) {
+          setError('');
+          setResults(data.results);
+        }
       } catch (e) {
-        setError(e.message);
+        if (!stale) setError(e.message);
       }
     }, 300);
-    return () => clearTimeout(t);
+    return () => { stale = true; clearTimeout(t); };
   }, [q]);
 
   if (stores === null) return <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />;

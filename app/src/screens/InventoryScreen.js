@@ -20,6 +20,7 @@ export default function InventoryScreen({ navigate }) {
   }, []);
 
   const toggle = async (bookId, inStock) => {
+    setError('');
     setItems((xs) => xs.map((i) => (i.book_id === bookId ? { ...i, in_stock: inStock } : i)));
     try {
       await api(`/inventory/${bookId}`, { method: 'PATCH', body: { inStock } });
