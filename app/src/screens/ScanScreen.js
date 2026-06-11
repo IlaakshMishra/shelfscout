@@ -12,6 +12,11 @@ export default function ScanScreen({ mode, navigate }) {
 
   const pick = async () => {
     setError('');
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setError('Photo access was denied — allow it to scan your shelf.');
+      return;
+    }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
@@ -24,9 +29,17 @@ export default function ScanScreen({ mode, navigate }) {
   const submit = async () => {
     setBusy(true);
     setError('');
+    const MAX_BYTES = 8 * 1024 * 1024;
+    const oversize = assets.find((a) => a.fileSize && a.fileSize > MAX_BYTES);
+    if (oversize) {
+      setError('Each photo must be under 8MB — pick a smaller photo.');
+      setBusy(false);
+      return;
+    }
     try {
       const form = new FormData();
       for (const [i, a] of assets.entries()) {
+        // Web-only app: fetching the picked blob URI is the reliable browser path (native would need {uri,name,type}).
         const blob = await (await fetch(a.uri)).blob();
         form.append('photos', blob, `photo-${i}.jpg`);
       }
@@ -51,7 +64,7 @@ export default function ScanScreen({ mode, navigate }) {
 
       <View style={s.previewRow}>
         {assets.map((a) => (
-          <Image key={a.uri} source={{ uri: a.uri }} style={s.preview} />
+          <Image key={a.assetId || a.uri} source={{ uri: a.uri }} style={s.preview} />
         ))}
       </View>
 

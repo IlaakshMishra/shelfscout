@@ -13,7 +13,9 @@ export default function ReviewScreen({ route, navigate }) {
   const [error, setError] = useState('');
 
   const kept = books.filter((b) => b.kept);
-  const payload = kept.map(({ title, author }) => ({ title, author }));
+  const payload = kept
+    .map(({ title, author }) => ({ title: title.trim(), author }))
+    .filter((b) => b.title);
 
   const toggle = (id) =>
     setBooks((bs) => bs.map((b) => (b.id === id ? { ...b, kept: !b.kept } : b)));
@@ -58,10 +60,10 @@ export default function ReviewScreen({ route, navigate }) {
           {preview.newBooks.length} new · {preview.existing.length} already in stock. Existing stock is never touched.
         </Text>
         {preview.newBooks.map((b) => (
-          <BookRow key={`n-${b.title}`} book={b} right={<Text style={s.badgeNew}>NEW</Text>} />
+          <BookRow key={`n-${b.title}-${b.author}`} book={b} right={<Text style={s.badgeNew}>NEW</Text>} />
         ))}
         {preview.existing.map((b) => (
-          <BookRow key={`e-${b.title}`} book={b} right={<Text style={s.badgeHave}>IN STOCK</Text>} />
+          <BookRow key={`e-${b.title}-${b.author}`} book={b} right={<Text style={s.badgeHave}>IN STOCK</Text>} />
         ))}
         <ErrorText>{error}</ErrorText>
         {busy ? <ActivityIndicator color={colors.accent} /> : (
@@ -110,9 +112,9 @@ export default function ReviewScreen({ route, navigate }) {
       <ErrorText>{error}</ErrorText>
       {busy ? <ActivityIndicator color={colors.accent} /> : (
         <Button
-          title={mode === 'store' ? `Preview inventory update (${kept.length})` : `Add ${kept.length} books to my library`}
+          title={mode === 'store' ? `Preview inventory update (${payload.length})` : `Add ${payload.length} books to my library`}
           onPress={confirm}
-          disabled={kept.length === 0}
+          disabled={payload.length === 0}
         />
       )}
     </View>
